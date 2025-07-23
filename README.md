@@ -1,7 +1,34 @@
-# AI Thinking Mode & Features Toggle
+![TiMst: AI Thinking Mode](aI_thinking_mode.png)
+
+# TiMst: AI Thinking Mode & Features Toggle
+
+## Overview Mapping
+**How the extension works across platforms:**
+
+| Platform         | Handler Script      | Features Automated         | CAPTCHA Solver | Notes                       |
+|------------------|--------------------|---------------------------|---------------|-----------------------------|
+| Claude.ai        | claude.js          | Thinking mode, toggles    | Yes           | Mutation observer enabled    |
+| Grok.com         | grok.js            | Feature toggles           | Yes           | Dynamic UI support          |
+| DeepSeek Chat    | deepseek.js        | Feature toggles           | Yes           | Handles dynamic selectors    |
+| ChatGPT          | chatgpt.js         | Feature toggles           | Yes           | Robust against UI changes    |
+| Gemini           | gemini.js          | Feature toggles           | Yes           | Mobile-friendly selectors    |
+| Google AI Studio | googleaistudio.js  | Feature toggles           | Yes           | Accessibility optimized      |
+
+**Core Logic:**
+- `logic.js`: Registers handlers, observes mutations, coordinates automation.
+- `captcha-solver.js`: Detects and solves CAPTCHAs across all platforms.
+
+**Integration Flow:**
+1. Extension loads on supported platform URL.
+2. `logic.js` activates relevant handler (e.g., `claude.js`).
+3. Handler automates feature toggles.
+4. `captcha-solver.js` detects and solves CAPTCHAs if present.
+
+---
 
 ## Table of Contents
-- [AI Thinking Mode \& Features Toggle](#ai-thinking-mode--features-toggle)
+- [TiMst: AI Thinking Mode \& Features Toggle](#timst-ai-thinking-mode--features-toggle)
+  - [Overview Mapping](#overview-mapping)
   - [Table of Contents](#table-of-contents)
   - [Challenge](#challenge)
   - [Journey](#journey)
