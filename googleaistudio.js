@@ -18,6 +18,7 @@ class GoogleAIStudioHandler extends AIPlatformHandler {
   }
   async applyCustomSettings() {
     try {
+      const waitFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const runSettingsPanel = document.querySelector(
         "ms-run-settings.expanded"
       );
@@ -26,12 +27,22 @@ class GoogleAIStudioHandler extends AIPlatformHandler {
           'button[aria-label="Show run settings"]'
         );
         if (openButton) {
-          simulateClick(openButton);
+          openButton.click();
           await waitFor(500);
         } else {
           console.error("Could not find 'Show run settings' button.");
           return;
         }
+      }
+      const urlContextToggle = document.querySelector(
+        'ms-browse-as-a-tool button[role="switch"]'
+      );
+      if (
+        urlContextToggle &&
+        urlContextToggle.getAttribute("aria-checked") === "false"
+      ) {
+        console.log("Enabling URL Context...");
+        urlContextToggle.click();
       }
       const topPContainer = document.querySelector(
         'div[mattooltip="Probability threshold for top-p sampling"]'
@@ -44,21 +55,13 @@ class GoogleAIStudioHandler extends AIPlatformHandler {
           topPInput.dispatchEvent(new Event("blur", { bubbles: true }));
         }
       }
-      const codeExecutionToggle = document.querySelector(
-        'mat-slide-toggle.code-execution-toggle button[role="switch"]'
-      );
-      if (
-        codeExecutionToggle &&
-        codeExecutionToggle.getAttribute("aria-checked") === "false"
-      ) {
-        codeExecutionToggle.click();
-      }
     } catch (error) {
       console.error("Failed to apply custom AI Studio settings:", error);
     }
   }
   async collapseMenusAndFocus() {
     try {
+      const waitFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const runSettingsPanel = document.querySelector(
         "ms-run-settings.expanded"
       );
@@ -67,7 +70,7 @@ class GoogleAIStudioHandler extends AIPlatformHandler {
           'button[aria-label="Close run settings panel"]'
         );
         if (closeButton) {
-          simulateClick(closeButton);
+          closeButton.click();
           await waitFor(300);
         }
       }
