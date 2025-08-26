@@ -13,12 +13,21 @@ class ClaudeHandler extends AIPlatformHandler {
   async enableFeatures() {
     await this.collapseClaudeSidebar();
     const thinkingActive = await this.detectThinkingActive();
+    const researchActive = await this.detectResearchActive();
+    let featuresEnabled = false;
     if (thinkingActive) {
+      featuresEnabled = true;
+    } else {
+      featuresEnabled = await this.toggleClaudeThinking();
+    }
+    if (!researchActive) {
+      await this.enableResearch();
+    }
+    if (featuresEnabled || !researchActive) {
       await this.setFeatureEnabled(true);
       await this.focusInputField();
-      return true;
     }
-    return await this.toggleClaudeThinking();
+    return featuresEnabled;
   }
   async collapseClaudeSidebar() {
     try {
@@ -55,6 +64,51 @@ class ClaudeHandler extends AIPlatformHandler {
       return false;
     } catch (error) {
       console.error("Error detecting thinking active:", error);
+      return false;
+    }
+  }
+  async detectResearchActive() {
+    try {
+      const researchButtons = Array.from(
+        document.querySelectorAll("button")
+      ).filter(
+        (button) =>
+          button.textContent && button.textContent.includes("Research")
+      );
+      for (const button of researchButtons) {
+        if (
+          button.getAttribute("aria-pressed") === "true" ||
+          button.classList.contains("text-accent-secondary-100") ||
+          button.classList.contains("bg-accent-secondary-100/[8%]")
+        ) {
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Error detecting research active:", error);
+      return false;
+    }
+  }
+  async enableResearch() {
+    try {
+      const researchButtons = Array.from(
+        document.querySelectorAll("button")
+      ).filter(
+        (button) =>
+          button.textContent && button.textContent.includes("Research")
+      );
+      for (const button of researchButtons) {
+        const isPressed = button.getAttribute("aria-pressed") === "true";
+        if (!isPressed) {
+          simulateClick(button);
+          await waitFor(300);
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Error enabling research:", error);
       return false;
     }
   }
