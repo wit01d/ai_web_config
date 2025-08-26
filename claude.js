@@ -13,17 +13,18 @@ class ClaudeHandler extends AIPlatformHandler {
   async enableFeatures() {
     await this.collapseClaudeSidebar();
     const thinkingActive = await this.detectThinkingActive();
-    const researchActive = await this.detectResearchActive();
+    // const researchActive = await this.detectResearchActive();
     let featuresEnabled = false;
     if (thinkingActive) {
       featuresEnabled = true;
     } else {
       featuresEnabled = await this.toggleClaudeThinking();
     }
-    if (!researchActive) {
-      await this.enableResearch();
-    }
-    if (featuresEnabled || !researchActive) {
+    // if (!researchActive) {
+    //   await this.enableResearch();
+    // }
+    // if (featuresEnabled || !researchActive) {
+    if (featuresEnabled) {
       await this.setFeatureEnabled(true);
       await this.focusInputField();
     }
@@ -67,6 +68,7 @@ class ClaudeHandler extends AIPlatformHandler {
       return false;
     }
   }
+  /*
   async detectResearchActive() {
     try {
       const researchButtons = Array.from(
@@ -90,6 +92,8 @@ class ClaudeHandler extends AIPlatformHandler {
       return false;
     }
   }
+  */
+  /*
   async enableResearch() {
     try {
       const researchButtons = Array.from(
@@ -112,6 +116,7 @@ class ClaudeHandler extends AIPlatformHandler {
       return false;
     }
   }
+  */
   async focusInputField() {
     try {
       const inputContainer = document.querySelector(
