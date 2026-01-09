@@ -1,43 +1,60 @@
 {
   "manifest_version": 2,
-  "name": "AI Thinking Mode & Features Toggle",
-  "version": "1.2",
-  "description": "Automatically enables thinking mode in Claude.ai, Grok.com, DeepSeek Chat, Canvas in ChatGPT, and features in Gemini and Google AI Studio with CAPTCHA solving",
+  "name": "TiMst: AI Thinking Mode & Features Toggle",
+  "version": "1.1.0",
+  "description": "Automate AI platform features, solve CAPTCHAs, and manage cookies across Claude.ai, Grok, DeepSeek, ChatGPT, Gemini, and Google AI Studio",
+  "author": "wit01d",
+
+  "permissions": [
+    "cookies",
+    "activeTab",
+    "storage",
+    "<all_urls>"
+  ],
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ai-thinking-toggle@wit01d",
+      "strict_min_version": "109.0"
+    }
+  },
+
   "icons": {
     "48": "icons/icon-48.png",
     "96": "icons/icon-96.png"
   },
-  "permissions": [
-    "activeTab",
-    "*://claude.ai/*",
-    "*://grok.com/*",
-    "*://chat.deepseek.com/*",
-    "*://chatgpt.com/*",
-    "*://gemini.google.com/*",
-    "*://aistudio.google.com/*",
-    "*://accounts.x.ai/*",
-    "*://dash.cloudflare.com/*"
-  ],
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "ai-thinking-toggle@example.com"
-    }
+
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
   },
+
+  "browser_action": {
+    "default_icon": {
+      "48": "icons/icon-48.png"
+    },
+    "default_title": "AI Thinking Mode",
+    "default_popup": "popup.html"
+  },
+
   "content_scripts": [
     {
       "matches": [
         "*://claude.ai/*",
+        "*://www.claude.ai/*",
         "*://grok.com/*",
+        "*://www.grok.com/*",
         "*://chat.deepseek.com/*",
         "*://chatgpt.com/*",
+        "*://www.chatgpt.com/*",
+        "*://chat.openai.com/*",
         "*://gemini.google.com/*",
-        "*://aistudio.google.com/*",
-        "*://accounts.x.ai/*",
-        "*://dash.cloudflare.com/*"
+        "*://aistudio.google.com/*"
       ],
       "js": [
-        "logic.js",
+        "cookie-manager.js",
         "captcha-solver.js",
+        "logic.js",
         "claude.js",
         "grok.js",
         "deepseek.js",
@@ -48,5 +65,9 @@
       "run_at": "document_idle",
       "all_frames": true
     }
+  ],
+
+  "web_accessible_resources": [
+    "icons/*"
   ]
 }

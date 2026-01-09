@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Thinking Mode</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #1a1a2e;
+      color: #eaeaea;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h1 .icon {
+      font-size: 20px;
+    }
+
+    .section {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 10px;
+    }
+
+    .current-site {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      background: #0f3460;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    .current-site .domain {
+      font-weight: 500;
+      color: #4cc9f0;
+    }
+
+    .current-site .status {
+      margin-left: auto;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #2ecc71;
+      color: #fff;
+    }
+
+    .current-site .status.unsupported {
+      background: #666;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #0f3460;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"]::placeholder {
+      color: #666;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #4cc9f0;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      flex: 1;
+      min-width: 80px;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+    }
+
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background: #444;
+    }
+
+    .btn-full {
+      width: 100%;
+      flex: none;
+    }
+
+    .output {
+      background: #0a0a14;
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: "Monaco", "Consolas", monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      display: none;
+    }
+
+    .output.visible {
+      display: block;
+    }
+
+    .output .success {
+      color: #2ecc71;
+    }
+
+    .output .error {
+      color: #e74c3c;
+    }
+
+    .output .info {
+      color: #4cc9f0;
+    }
+
+    .cookie-list {
+      margin-top: 8px;
+    }
+
+    .cookie-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      background: #0f3460;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+
+    .cookie-item .name {
+      font-weight: 500;
+      color: #4cc9f0;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cookie-item .delete-btn {
+      padding: 2px 8px;
+      font-size: 10px;
+      background: #e74c3c;
+      border-radius: 3px;
+      min-width: auto;
+      flex: none;
+    }
+
+    .divider {
+      height: 1px;
+      background: #333;
+      margin: 12px 0;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #666;
+      margin-top: 8px;
+    }
+
+    .footer a {
+      color: #4cc9f0;
+      text-decoration: none;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #333;
+      border-top-color: #4cc9f0;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    <span class="icon">🧠</span>
+    AI Thinking Mode
+  </h1>
+
+  <!-- Current Site Info -->
+  <div class="section">
+    <div class="section-title">Current Site</div>
+    <div class="current-site">
+      <span class="domain" id="currentDomain">Loading...</span>
+      <span class="status" id="platformStatus">Checking...</span>
+    </div>
+  </div>
+
+  <!-- Cookie Management -->
+  <div class="section">
+    <div class="section-title">Cookie Management</div>
+    
+    <input type="text" id="cookieName" placeholder="Enter cookie name to delete...">
+    
+    <div class="btn-group">
+      <button class="btn-primary" id="deleteSingleBtn">Delete Cookie</button>
+      <button class="btn-secondary" id="listCookiesBtn">List All</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="btn-group">
+      <button class="btn-danger btn-full" id="deleteAllBtn">🗑️ Delete All Cookies for This Site</button>
+    </div>
+
+    <div id="output" class="output"></div>
+    <div id="cookieList" class="cookie-list hidden"></div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="section">
+    <div class="section-title">Quick Actions</div>
+    <div class="btn-group">
+      <button class="btn-secondary" id="reloadPageBtn">🔄 Reload Page</button>
+      <button class="btn-secondary" id="hardReloadBtn">⚡ Hard Reload</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="https://github.com/wit01d/ai_web_config" target="_blank">GitHub</a> • v1.1.0
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
