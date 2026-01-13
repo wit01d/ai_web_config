@@ -1,4 +1,4 @@
-// background.js - Background script for cookie management and extension coordination
+// background.js - Chrome MV3 Service Worker for cookie management and extension coordination
 // This script handles all cookie API operations since content scripts cannot access cookies directly
 
 "use strict";
@@ -15,7 +15,7 @@
  */
 async function deleteCookie(url, name) {
   try {
-    const removed = await browser.cookies.remove({ url, name });
+    const removed = await chrome.cookies.remove({ url, name });
     if (removed) {
       console.log(`[CookieManager] Deleted cookie "${name}" from ${url}`);
       return { success: true, cookie: removed };
@@ -60,10 +60,10 @@ async function deleteAllCookiesForDomain(domain) {
   try {
     // Normalize domain - remove leading dot if present for the query
     const normalizedDomain = domain.startsWith(".") ? domain.substring(1) : domain;
-    
+
     // Get all cookies for the domain (including subdomains)
-    const cookies = await browser.cookies.getAll({ domain: normalizedDomain });
-    
+    const cookies = await chrome.cookies.getAll({ domain: normalizedDomain });
+
     console.log(`[CookieManager] Found ${cookies.length} cookies for domain "${domain}"`);
 
     if (cookies.length === 0) {
@@ -74,9 +74,9 @@ async function deleteAllCookiesForDomain(domain) {
     for (const cookie of cookies) {
       const protocol = cookie.secure ? "https://" : "http://";
       const cookieUrl = `${protocol}${cookie.domain.replace(/^\./, "")}${cookie.path}`;
-      
+
       try {
-        await browser.cookies.remove({ url: cookieUrl, name: cookie.name });
+        await chrome.cookies.remove({ url: cookieUrl, name: cookie.name });
         deletedCount++;
       } catch (err) {
         console.warn(`[CookieManager] Failed to delete cookie "${cookie.name}":`, err);
@@ -99,8 +99,8 @@ async function deleteAllCookiesForDomain(domain) {
 async function listCookiesForDomain(domain) {
   try {
     const normalizedDomain = domain.startsWith(".") ? domain.substring(1) : domain;
-    const cookies = await browser.cookies.getAll({ domain: normalizedDomain });
-    
+    const cookies = await chrome.cookies.getAll({ domain: normalizedDomain });
+
     console.log(`[CookieManager] Listed ${cookies.length} cookies for "${domain}"`);
     return { success: true, cookies };
   } catch (error) {
@@ -117,7 +117,7 @@ async function listCookiesForDomain(domain) {
  */
 async function getCookie(url, name) {
   try {
-    const cookie = await browser.cookies.get({ url, name });
+    const cookie = await chrome.cookies.get({ url, name });
     if (cookie) {
       return { success: true, cookie };
     } else {
@@ -136,7 +136,7 @@ async function getCookie(url, name) {
  */
 async function setCookie(cookieDetails) {
   try {
-    const cookie = await browser.cookies.set(cookieDetails);
+    const cookie = await chrome.cookies.set(cookieDetails);
     if (cookie) {
       console.log(`[CookieManager] Set cookie "${cookieDetails.name}"`);
       return { success: true, cookie };
@@ -157,7 +157,6 @@ const PLATFORM_COOKIES = {
   "claude.ai": {
     url: "https://claude.ai",
     domain: "claude.ai",
-    // Common cookies that might need clearing for reset
     resetCookies: ["sessionKey", "__cf_bm", "cf_clearance", "activityToken"]
   },
   "grok.com": {
@@ -202,13 +201,13 @@ function getPlatformConfig(hostname) {
   if (PLATFORM_COOKIES[hostname]) {
     return PLATFORM_COOKIES[hostname];
   }
-  
+
   // Try without www prefix
   const withoutWww = hostname.replace(/^www\./, "");
   if (PLATFORM_COOKIES[withoutWww]) {
     return PLATFORM_COOKIES[withoutWww];
   }
-  
+
   return null;
 }
 
@@ -216,72 +215,153 @@ function getPlatformConfig(hostname) {
 // Message Listener - Handle requests from content scripts and popup
 // ============================================================================
 
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("[Background] Received message:", message.action);
 
-  switch (message.action) {
-    // Delete a single cookie
-    case "deleteCookie":
-      deleteCookie(message.url, message.name).then(sendResponse);
-      return true; // Keep channel open for async response
+  // Handle async responses - must return true to keep channel open
+  const handleMessage = async () => {
+    switch (message.action) {
+      case "deleteCookie":
+        return await deleteCookie(message.url, message.name);
 
-    // Delete multiple cookies by name
-    case "deleteCookiesByNames":
-      deleteCookiesByNames(message.url, message.names).then(sendResponse);
-      return true;
+      case "deleteCookiesByNames":
+        return await deleteCookiesByNames(message.url, message.names);
 
-    // Delete all cookies for a domain
-    case "deleteAllCookies":
-      deleteAllCookiesForDomain(message.domain).then(sendResponse);
-      return true;
+      case "deleteAllCookies":
+        return await deleteAllCookiesForDomain(message.domain);
 
-    // List all cookies for a domain
-    case "listCookies":
-      listCookiesForDomain(message.domain).then(sendResponse);
-      return true;
+      case "listCookies":
+        return await listCookiesForDomain(message.domain);
 
-    // Get a specific cookie
-    case "getCookie":
-      getCookie(message.url, message.name).then(sendResponse);
-      return true;
+      case "getCookie":
+        return await getCookie(message.url, message.name);
 
-    // Set a cookie
-    case "setCookie":
-      setCookie(message.cookieDetails).then(sendResponse);
-      return true;
+      case "setCookie":
+        return await setCookie(message.cookieDetails);
 
-    // Get platform configuration
-    case "getPlatformConfig":
-      const config = getPlatformConfig(message.hostname);
-      sendResponse({ success: !!config, config });
-      return false;
+      case "getPlatformConfig":
+        const config = getPlatformConfig(message.hostname);
+        return { success: !!config, config };
 
-    // Reset platform cookies (delete specific cookies for a platform)
-    case "resetPlatformCookies":
-      const platformConfig = getPlatformConfig(message.hostname);
-      if (platformConfig) {
-        deleteCookiesByNames(platformConfig.url, platformConfig.resetCookies)
-          .then(sendResponse);
-      } else {
-        sendResponse({ success: false, error: "Unknown platform" });
+      case "resetPlatformCookies":
+        const platformConfig = getPlatformConfig(message.hostname);
+        if (platformConfig) {
+          return await deleteCookiesByNames(platformConfig.url, platformConfig.resetCookies);
+        }
+        return { success: false, error: "Unknown platform" };
+
+      case "clearPlatformCookies":
+        const platform = getPlatformConfig(message.hostname);
+        if (platform) {
+          return await deleteAllCookiesForDomain(platform.domain);
+        }
+        return await deleteAllCookiesForDomain(message.hostname);
+
+      default:
+        console.warn("[Background] Unknown action:", message.action);
+        return { success: false, error: "Unknown action" };
+    }
+  };
+
+  // Execute async handler and send response
+  handleMessage().then(sendResponse).catch(error => {
+    console.error("[Background] Error handling message:", error);
+    sendResponse({ success: false, error: error.message });
+  });
+
+  return true; // Keep channel open for async response
+});
+
+// ============================================================================
+// Context Menus - Chrome version (on extension action icon)
+// ============================================================================
+
+/**
+ * Set up context menus for the extension action
+ * Note: Chrome doesn't have Firefox's Tools menu, so we use the action context
+ */
+async function setupContextMenus() {
+  // Remove all existing menus first
+  await chrome.contextMenus.removeAll();
+
+  // Create parent menu for tab actions
+  chrome.contextMenus.create({
+    id: "tab-manager",
+    title: "Tab Actions",
+    contexts: ["action"]
+  });
+
+  // New Tab action
+  chrome.contextMenus.create({
+    id: "new-tab",
+    parentId: "tab-manager",
+    title: "New Tab",
+    contexts: ["action"]
+  });
+
+  // Close Current Tab action
+  chrome.contextMenus.create({
+    id: "close-tab",
+    parentId: "tab-manager",
+    title: "Close Current Tab",
+    contexts: ["action"]
+  });
+
+  // Separator
+  chrome.contextMenus.create({
+    id: "separator-1",
+    parentId: "tab-manager",
+    type: "separator",
+    contexts: ["action"]
+  });
+
+  // Reload Tab action
+  chrome.contextMenus.create({
+    id: "reload-tab",
+    parentId: "tab-manager",
+    title: "Reload Tab",
+    contexts: ["action"]
+  });
+
+  // Hard Reload Tab action
+  chrome.contextMenus.create({
+    id: "hard-reload-tab",
+    parentId: "tab-manager",
+    title: "Hard Reload (Clear Cache)",
+    contexts: ["action"]
+  });
+
+  console.log("[TabManager] Context menus created");
+}
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  switch (info.menuItemId) {
+    case "new-tab":
+      await chrome.tabs.create({});
+      console.log("[TabManager] Created new tab");
+      break;
+
+    case "close-tab":
+      if (tab && tab.id) {
+        await chrome.tabs.remove(tab.id);
+        console.log(`[TabManager] Closed tab ${tab.id}`);
       }
-      return true;
+      break;
 
-    // Clear all cookies for current platform
-    case "clearPlatformCookies":
-      const platform = getPlatformConfig(message.hostname);
-      if (platform) {
-        deleteAllCookiesForDomain(platform.domain).then(sendResponse);
-      } else {
-        // Fallback: use the hostname directly
-        deleteAllCookiesForDomain(message.hostname).then(sendResponse);
+    case "reload-tab":
+      if (tab && tab.id) {
+        await chrome.tabs.reload(tab.id);
+        console.log(`[TabManager] Reloaded tab ${tab.id}`);
       }
-      return true;
+      break;
 
-    default:
-      console.warn("[Background] Unknown action:", message.action);
-      sendResponse({ success: false, error: "Unknown action" });
-      return false;
+    case "hard-reload-tab":
+      if (tab && tab.id) {
+        await chrome.tabs.reload(tab.id, { bypassCache: true });
+        console.log(`[TabManager] Hard reloaded tab ${tab.id}`);
+      }
+      break;
   }
 });
 
@@ -289,10 +369,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Extension Lifecycle Events
 // ============================================================================
 
-// Log when extension is installed or updated
-browser.runtime.onInstalled.addListener((details) => {
+// Set up menus when extension is installed or updated
+chrome.runtime.onInstalled.addListener((details) => {
   console.log(`[Background] Extension ${details.reason}:`, details);
-  
+  setupContextMenus();
+
   if (details.reason === "install") {
     console.log("[Background] First install - setting up defaults");
   } else if (details.reason === "update") {
@@ -300,110 +381,10 @@ browser.runtime.onInstalled.addListener((details) => {
   }
 });
 
-// Log startup
-console.log("[Background] AI Thinking Mode extension background script loaded");
-
-// ============================================================================
-// TAB MANAGER - Tools Menu Integration (ALT → Tools → Tabs)
-// ============================================================================
-
-/**
- * Update the Tools menu with current tabs
- * Creates a "Tabs" submenu listing all open tabs in the current window
- */
-async function updateTabMenu() {
-  // Remove existing tab-related menu items (preserve other menus)
-  const menuIds = ['tab-manager', 'new-tab', 'close-tab', 'sep-tabs'];
-  for (const id of menuIds) {
-    try { await browser.menus.remove(id); } catch(e) { /* ignore if not exists */ }
-  }
-
-  // Get current window's tabs
-  const tabs = await browser.tabs.query({ currentWindow: true });
-
-  // Remove dynamic tab items from previous update
-  for (const tab of tabs) {
-    try { await browser.menus.remove(`tab-${tab.id}`); } catch(e) { /* ignore */ }
-  }
-
-  // Create parent "Tabs" menu
-  browser.menus.create({
-    id: "tab-manager",
-    title: "Tabs",
-    contexts: ["tools_menu"]
-  });
-
-  // Add each tab as a submenu item
-  tabs.forEach((tab, index) => {
-    const prefix = tab.active ? "\u25CF " : ""; // ● for active tab
-    const title = tab.title || "Untitled";
-    browser.menus.create({
-      id: `tab-${tab.id}`,
-      parentId: "tab-manager",
-      title: `${prefix}${index + 1}. ${title.substring(0, 50)}${title.length > 50 ? '...' : ''}`,
-      contexts: ["tools_menu"]
-    });
-  });
-
-  // Separator before actions
-  browser.menus.create({
-    id: "sep-tabs",
-    parentId: "tab-manager",
-    type: "separator",
-    contexts: ["tools_menu"]
-  });
-
-  // New Tab action
-  browser.menus.create({
-    id: "new-tab",
-    parentId: "tab-manager",
-    title: "+ New Tab",
-    contexts: ["tools_menu"]
-  });
-
-  // Close Current Tab action
-  browser.menus.create({
-    id: "close-tab",
-    parentId: "tab-manager",
-    title: "x Close Current Tab",
-    contexts: ["tools_menu"]
-  });
-
-  console.log(`[TabManager] Updated menu with ${tabs.length} tabs`);
-}
-
-// Handle menu item clicks
-browser.menus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId.startsWith("tab-")) {
-    // Switch to clicked tab
-    const tabId = parseInt(info.menuItemId.replace("tab-", ""));
-    await browser.tabs.update(tabId, { active: true });
-    console.log(`[TabManager] Switched to tab ${tabId}`);
-  } else if (info.menuItemId === "new-tab") {
-    // Create new tab
-    await browser.tabs.create({});
-    console.log("[TabManager] Created new tab");
-  } else if (info.menuItemId === "close-tab") {
-    // Close current tab
-    if (tab && tab.id) {
-      await browser.tabs.remove(tab.id);
-      console.log(`[TabManager] Closed tab ${tab.id}`);
-    }
-  }
+// Re-setup menus on browser startup (service worker may have been terminated)
+chrome.runtime.onStartup.addListener(() => {
+  console.log("[Background] Browser startup - reinitializing");
+  setupContextMenus();
 });
 
-// Update menu when tabs change
-browser.tabs.onCreated.addListener(() => updateTabMenu());
-browser.tabs.onRemoved.addListener(() => updateTabMenu());
-browser.tabs.onActivated.addListener(() => updateTabMenu());
-browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  // Only update on title or status changes to avoid excessive updates
-  if (changeInfo.title || changeInfo.status === 'complete') {
-    updateTabMenu();
-  }
-});
-
-// Initialize tab menu on extension load
-updateTabMenu();
-
-console.log("[TabManager] Tab manager initialized - Access via ALT \u2192 Tools \u2192 Tabs");
+console.log("[Background] Chrome MV3 service worker loaded - AI Thinking Mode extension");

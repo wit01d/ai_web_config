@@ -26,9 +26,37 @@
 
 ---
 
+## Browser Support
+
+| Browser | Version | Manifest | Status |
+|---------|---------|----------|--------|
+| Firefox | 109.0+  | MV2      | Stable |
+| Chrome  | 88+     | MV3      | Stable |
+
+---
+
+## Installation
+
+### Firefox
+1. Download `ai-thinking-toggle.xpi` from releases (or run `./create_xpi.sh` to build)
+2. Open Firefox and go to `about:addons`
+3. Click the gear icon and select "Install Add-on From File..."
+4. Select the `.xpi` file
+
+### Chrome
+1. Run `./build-chrome.sh` to build the extension
+2. Open Chrome and go to `chrome://extensions`
+3. Enable **Developer mode** (toggle in top-right)
+4. Click **Load unpacked**
+5. Select the `dist/chrome` directory
+
+---
+
 ## Table of Contents
 - [TiMst: AI Thinking Mode \& Features Toggle](#timst-ai-thinking-mode--features-toggle)
   - [Overview Mapping](#overview-mapping)
+  - [Browser Support](#browser-support)
+  - [Installation](#installation)
   - [Table of Contents](#table-of-contents)
   - [Challenge](#challenge)
   - [Journey](#journey)
@@ -141,7 +169,10 @@ Planned improvements include:
 - Expanding CAPTCHA solver capabilities
 - Supporting more AI platforms
 - Enhancing accessibility and mobile compatibility
-- Publishing on browser extension stores
+- Publishing on browser extension stores (Chrome Web Store, Firefox Add-ons)
+
+**Completed:**
+- Cross-browser support (Firefox MV2 + Chrome MV3)
 
 *Example:*
 > "Next, we aim to add support for additional CAPTCHA types and integrate user customization options."
@@ -151,12 +182,39 @@ Planned improvements include:
 ## Project Structure & Integration
 **Purpose:** Details about how the project is structured, integrations, and code/configuration examples.
 
-- **manifest.json**: Declares permissions, content scripts, and platform matches.
+```
+ai_web_config/
+├── manifest.json          # Firefox MV2 manifest
+├── background.js          # Firefox background script
+├── chrome/
+│   ├── manifest.json      # Chrome MV3 manifest
+│   └── background.js      # Chrome service worker
+├── lib/
+│   └── browser-polyfill.min.js  # Cross-browser API polyfill
+├── logic.js               # Core orchestration & handler registry
+├── cookie-manager.js      # Cookie management API
+├── captcha-solver.js      # CAPTCHA detection & solving
+├── popup.html / popup.js  # Extension popup UI
+├── claude.js              # Claude.ai handler
+├── grok.js                # Grok handler
+├── deepseek.js            # DeepSeek handler
+├── chatgpt.js             # ChatGPT handler
+├── gemini.js              # Gemini handler
+├── googleaistudio.js      # Google AI Studio handler
+├── icons/                 # Extension icons
+├── create_xpi.sh          # Firefox build script
+├── build-chrome.sh        # Chrome build script
+└── dist/                  # Build output directory
+    └── chrome/            # Chrome unpacked extension
+```
+
+**Key Components:**
+- **manifest.json**: Declares permissions, content scripts, and platform matches (Firefox MV2).
+- **chrome/manifest.json**: Chrome MV3 manifest with service worker and host_permissions.
 - **logic.js**: Core logic, handler registration, mutation observer for URL changes.
 - **captcha-solver.js**: Detects and auto-solves CAPTCHAs using token generation and simulated clicks.
 - **Platform Handlers**: (`claude.js`, `grok.js`, `deepseek.js`, `chatgpt.js`, `gemini.js`, `googleaistudio.js`) Each implements automation for a specific platform.
-- **create_xpi.sh**: Script to package the extension for Firefox.
-- **ai-thinking-toggle.xpi**: The packaged extension ready for installation.
+- **lib/browser-polyfill.min.js**: Mozilla's webextension-polyfill for cross-browser compatibility.
 
 *Example integration:*
 ```json
