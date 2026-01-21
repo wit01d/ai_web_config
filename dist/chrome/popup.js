@@ -27,6 +27,7 @@ const elements = {
   deleteSingleBtn: document.getElementById("deleteSingleBtn"),
   listCookiesBtn: document.getElementById("listCookiesBtn"),
   deleteAllBtn: document.getElementById("deleteAllBtn"),
+  clearSiteData: document.getElementById("clearSiteData"),
   output: document.getElementById("output"),
   cookieList: document.getElementById("cookieList"),
   reloadPageBtn: document.getElementById("reloadPageBtn"),
@@ -161,30 +162,76 @@ async function deleteCookieByName(name) {
 }
 
 async function deleteAllCookies() {
-  const confirmed = confirm(
-    `Are you sure you want to delete ALL cookies for ${currentHostname}?\n\n` +
-    `This will log you out and reset your session.`
-  );
+  const clearSiteDataChecked = elements.clearSiteData.checked;
+
+  const confirmMessage = clearSiteDataChecked
+    ? `Are you sure you want to delete ALL cookies AND site data for ${currentHostname}?\n\n` +
+      `This will:\n` +
+      `• Delete all cookies\n` +
+      `• Clear browser cache\n` +
+      `• Clear localStorage & sessionStorage\n` +
+      `• Remove IndexedDB databases\n` +
+      `• Unregister service workers\n\n` +
+      `You will be logged out and the site will be fully reset.`
+    : `Are you sure you want to delete ALL cookies for ${currentHostname}?\n\n` +
+      `This will log you out and reset your session.`;
+
+  const confirmed = confirm(confirmMessage);
 
   if (!confirmed) {
     return;
   }
 
-  showOutput(`Deleting all cookies for ${currentHostname}...`, "info");
   hideCookieList();
 
+  // Step 1: Delete cookies
+  showOutput(`Deleting all cookies for ${currentHostname}...`, "info");
+
   try {
-    const result = await browser.runtime.sendMessage({
+    const cookieResult = await browser.runtime.sendMessage({
       action: "deleteAllCookies",
       domain: currentHostname
     });
 
-    if (result.success) {
-      showOutput(`✓ Deleted ${result.count} cookies successfully`, "success");
-      appendOutput("\nReload the page to apply changes.", "info");
+    if (cookieResult.success) {
+      showOutput(`✓ Deleted ${cookieResult.count} cookies`, "success");
     } else {
-      showOutput(`✗ Error: ${result.error || "Unknown error"}`, "error");
+      showOutput(`✗ Error deleting cookies: ${cookieResult.error || "Unknown error"}`, "error");
+      return;
     }
+
+    // Step 2: Clear site data if checkbox is checked
+    if (clearSiteDataChecked) {
+      appendOutput("\nClearing site data...", "info");
+
+      // Build origin URL from current URL
+      const urlObj = new URL(currentUrl);
+      const origin = urlObj.origin;
+
+      const siteDataResult = await browser.runtime.sendMessage({
+        action: "clearSiteData",
+        origin: origin
+      });
+
+      if (siteDataResult.success) {
+        appendOutput(`✓ Cleared: ${siteDataResult.cleared.join(", ")}`, "success");
+      } else {
+        appendOutput(`✗ Error clearing site data: ${siteDataResult.error}`, "error");
+      }
+
+      // Also clear sessionStorage via content script injection
+      try {
+        await browser.tabs.executeScript(currentTab.id, {
+          code: 'sessionStorage.clear(); console.log("[AI Thinking Mode] Cleared sessionStorage");'
+        });
+        appendOutput("✓ Cleared sessionStorage", "success");
+      } catch (e) {
+        // sessionStorage clearing may fail on some pages, that's okay
+        console.warn("Could not clear sessionStorage:", e);
+      }
+    }
+
+    appendOutput("\n🔄 Reload the page to apply changes.", "info");
   } catch (error) {
     showOutput(`✗ Error: ${error.message}`, "error");
   }

@@ -110,6 +110,36 @@ async function listCookiesForDomain(domain) {
 }
 
 /**
+ * Clear all site data for a specific origin
+ * Uses browsingData API to remove cache, localStorage, indexedDB, service workers
+ * @param {string} origin - The origin URL (e.g., "https://claude.ai")
+ * @returns {Promise<{success: boolean, cleared: string[], error?: string}>}
+ */
+async function clearSiteData(origin) {
+  try {
+    console.log(`[SiteDataManager] Clearing site data for ${origin}`);
+
+    const dataTypes = {
+      cache: true,
+      localStorage: true,
+      indexedDB: true,
+      serviceWorkers: true,
+      pluginData: true,
+    };
+
+    await browser.browsingData.remove({ since: 0, origins: [origin] }, dataTypes);
+
+    const clearedTypes = Object.keys(dataTypes).filter(k => dataTypes[k]);
+    console.log(`[SiteDataManager] Cleared site data types:`, clearedTypes);
+
+    return { success: true, cleared: clearedTypes };
+  } catch (error) {
+    console.error(`[SiteDataManager] Error clearing site data for "${origin}":`, error);
+    return { success: false, cleared: [], error: error.message };
+  }
+}
+
+/**
  * Get a specific cookie by URL and name
  * @param {string} url - The URL associated with the cookie
  * @param {string} name - The cookie name
@@ -276,6 +306,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Fallback: use the hostname directly
         deleteAllCookiesForDomain(message.hostname).then(sendResponse);
       }
+      return true;
+
+    // Clear all site data (cache, localStorage, indexedDB, service workers)
+    case "clearSiteData":
+      clearSiteData(message.origin).then(sendResponse);
       return true;
 
     default:

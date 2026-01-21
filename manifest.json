@@ -11,7 +11,8 @@
     "storage",
     "<all_urls>",
     "menus",
-    "tabs"
+    "tabs",
+    "browsingData"
   ],
 
   "browser_specific_settings": {

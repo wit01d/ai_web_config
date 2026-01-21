@@ -253,6 +253,31 @@
     .hidden {
       display: none !important;
     }
+
+    .clear-options {
+      margin-bottom: 10px;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #ccc;
+      cursor: pointer;
+      padding: 6px 0;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #667eea;
+      cursor: pointer;
+    }
+
+    .checkbox-label:hover {
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -282,6 +307,13 @@
     </div>
 
     <div class="divider"></div>
+
+    <div class="clear-options">
+      <label class="checkbox-label">
+        <input type="checkbox" id="clearSiteData">
+        Also clear site data (cache, storage, etc.)
+      </label>
+    </div>
 
     <div class="btn-group">
       <button class="btn-danger btn-full" id="deleteAllBtn">🗑️ Delete All Cookies for This Site</button>
