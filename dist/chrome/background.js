@@ -113,26 +113,49 @@ async function listCookiesForDomain(domain) {
  * Clear all site data for a specific origin
  * Uses browsingData API to remove cache, localStorage, indexedDB, service workers
  * @param {string} origin - The origin URL (e.g., "https://claude.ai")
+ * @param {Object} options - Options for clearing data
+ * @param {boolean} options.includeGlobalData - If true, also clears cache and pluginData globally (affects all sites)
  * @returns {Promise<{success: boolean, cleared: string[], error?: string}>}
  */
-async function clearSiteData(origin) {
-  try {
-    console.log(`[SiteDataManager] Clearing site data for ${origin}`);
+async function clearSiteData(origin, options = {}) {
+  const { includeGlobalData = false } = options;
+  const cleared = [];
 
-    const dataTypes = {
-      cache: true,
+  try {
+    console.log(`[SiteDataManager] Clearing site data for ${origin}${includeGlobalData ? ' (including global data)' : ''}`);
+
+    // Data types that support the 'origins' property (origin-specific)
+    const originScopedTypes = {
+      cacheStorage: true,
       localStorage: true,
       indexedDB: true,
       serviceWorkers: true,
-      pluginData: true,
     };
 
-    await chrome.browsingData.remove({ since: 0, origins: [origin] }, dataTypes);
+    try {
+      // Try Chrome-style with 'origins' property
+      await chrome.browsingData.remove({ origins: [origin] }, originScopedTypes);
+      cleared.push(...Object.keys(originScopedTypes));
+    } catch (originsError) {
+      // Fallback: clear globally if 'origins' is not supported
+      console.log(`[SiteDataManager] 'origins' not supported, using global fallback`);
+      await chrome.browsingData.remove({ since: 0 }, originScopedTypes);
+      cleared.push(...Object.keys(originScopedTypes).map(t => `${t} (global fallback)`));
+    }
 
-    const clearedTypes = Object.keys(dataTypes).filter(k => dataTypes[k]);
-    console.log(`[SiteDataManager] Cleared site data types:`, clearedTypes);
+    // Optionally clear global data types (cache, pluginData - affects ALL sites)
+    if (includeGlobalData) {
+      const globalTypes = {
+        cache: true,
+        pluginData: true,
+      };
+      await chrome.browsingData.remove({ since: 0 }, globalTypes);
+      cleared.push(...Object.keys(globalTypes).map(t => `${t} (global)`));
+      console.log(`[SiteDataManager] Also cleared global data types: cache, pluginData`);
+    }
 
-    return { success: true, cleared: clearedTypes };
+    console.log(`[SiteDataManager] Cleared site data types:`, cleared);
+    return { success: true, cleared };
   } catch (error) {
     console.error(`[SiteDataManager] Error clearing site data for "${origin}":`, error);
     return { success: false, cleared: [], error: error.message };
@@ -288,7 +311,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return await deleteAllCookiesForDomain(message.hostname);
 
       case "clearSiteData":
-        return await clearSiteData(message.origin);
+        return await clearSiteData(message.origin, {
+          includeGlobalData: message.includeGlobalData || false
+        });
 
       default:
         console.warn("[Background] Unknown action:", message.action);

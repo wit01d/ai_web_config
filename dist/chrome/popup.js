@@ -28,6 +28,8 @@ const elements = {
   listCookiesBtn: document.getElementById("listCookiesBtn"),
   deleteAllBtn: document.getElementById("deleteAllBtn"),
   clearSiteData: document.getElementById("clearSiteData"),
+  includeGlobalData: document.getElementById("includeGlobalData"),
+  globalDataOption: document.getElementById("globalDataOption"),
   output: document.getElementById("output"),
   cookieList: document.getElementById("cookieList"),
   reloadPageBtn: document.getElementById("reloadPageBtn"),
@@ -163,18 +165,30 @@ async function deleteCookieByName(name) {
 
 async function deleteAllCookies() {
   const clearSiteDataChecked = elements.clearSiteData.checked;
+  const includeGlobalDataChecked = elements.includeGlobalData.checked;
 
-  const confirmMessage = clearSiteDataChecked
-    ? `Are you sure you want to delete ALL cookies AND site data for ${currentHostname}?\n\n` +
+  let confirmMessage;
+  if (clearSiteDataChecked && includeGlobalDataChecked) {
+    confirmMessage = `Are you sure you want to delete ALL cookies AND site data for ${currentHostname}?\n\n` +
       `This will:\n` +
-      `• Delete all cookies\n` +
-      `• Clear browser cache\n` +
+      `• Delete all cookies for this site\n` +
+      `• Clear localStorage & sessionStorage\n` +
+      `• Remove IndexedDB databases\n` +
+      `• Unregister service workers\n` +
+      `• ⚠️ Clear HTTP cache for ALL SITES\n\n` +
+      `You will be logged out and the site will be fully reset.`;
+  } else if (clearSiteDataChecked) {
+    confirmMessage = `Are you sure you want to delete ALL cookies AND site data for ${currentHostname}?\n\n` +
+      `This will:\n` +
+      `• Delete all cookies for this site\n` +
       `• Clear localStorage & sessionStorage\n` +
       `• Remove IndexedDB databases\n` +
       `• Unregister service workers\n\n` +
-      `You will be logged out and the site will be fully reset.`
-    : `Are you sure you want to delete ALL cookies for ${currentHostname}?\n\n` +
+      `You will be logged out and the site will be fully reset.`;
+  } else {
+    confirmMessage = `Are you sure you want to delete ALL cookies for ${currentHostname}?\n\n` +
       `This will log you out and reset your session.`;
+  }
 
   const confirmed = confirm(confirmMessage);
 
@@ -210,7 +224,8 @@ async function deleteAllCookies() {
 
       const siteDataResult = await browser.runtime.sendMessage({
         action: "clearSiteData",
-        origin: origin
+        origin: origin,
+        includeGlobalData: includeGlobalDataChecked
       });
 
       if (siteDataResult.success) {
@@ -310,6 +325,16 @@ elements.listCookiesBtn.addEventListener("click", listAllCookies);
 elements.deleteAllBtn.addEventListener("click", deleteAllCookies);
 elements.reloadPageBtn.addEventListener("click", reloadPage);
 elements.hardReloadBtn.addEventListener("click", hardReload);
+
+// Show/hide global data option when clearSiteData is toggled
+elements.clearSiteData.addEventListener("change", () => {
+  if (elements.clearSiteData.checked) {
+    elements.globalDataOption.style.display = "flex";
+  } else {
+    elements.globalDataOption.style.display = "none";
+    elements.includeGlobalData.checked = false;
+  }
+});
 
 // Handle Enter key in cookie name input
 elements.cookieName.addEventListener("keypress", (e) => {

@@ -113,26 +113,77 @@ async function listCookiesForDomain(domain) {
  * Clear all site data for a specific origin
  * Uses browsingData API to remove cache, localStorage, indexedDB, service workers
  * @param {string} origin - The origin URL (e.g., "https://claude.ai")
+ * @param {Object} options - Options for clearing data
+ * @param {boolean} options.includeGlobalData - If true, also clears cache and pluginData globally (affects all sites)
  * @returns {Promise<{success: boolean, cleared: string[], error?: string}>}
  */
-async function clearSiteData(origin) {
-  try {
-    console.log(`[SiteDataManager] Clearing site data for ${origin}`);
+async function clearSiteData(origin, options = {}) {
+  const { includeGlobalData = false } = options;
+  const cleared = [];
 
-    const dataTypes = {
-      cache: true,
+  try {
+    console.log(`[SiteDataManager] Clearing site data for ${origin}${includeGlobalData ? ' (including global data)' : ''}`);
+
+    // Extract hostname from origin for Firefox compatibility
+    const hostname = new URL(origin).hostname;
+
+    // Firefox doesn't support 'origins' property, only 'hostnames' with limited data types
+    // Try Chrome-style first, fall back to Firefox-style
+    const originScopedTypes = {
+      cacheStorage: true,
       localStorage: true,
       indexedDB: true,
       serviceWorkers: true,
-      pluginData: true,
     };
 
-    await browser.browsingData.remove({ since: 0, origins: [origin] }, dataTypes);
+    try {
+      // Try Chrome-style with 'origins' property
+      await browser.browsingData.remove({ origins: [origin] }, originScopedTypes);
+      cleared.push(...Object.keys(originScopedTypes));
+    } catch (chromeStyleError) {
+      // Firefox fallback: use 'hostnames' (only supports cookies and localStorage)
+      console.log(`[SiteDataManager] Chrome-style origins not supported, using Firefox fallback`);
 
-    const clearedTypes = Object.keys(dataTypes).filter(k => dataTypes[k]);
-    console.log(`[SiteDataManager] Cleared site data types:`, clearedTypes);
+      // Firefox 'hostnames' only works with cookies and localStorage
+      const firefoxSupportedTypes = {
+        localStorage: true,
+      };
 
-    return { success: true, cleared: clearedTypes };
+      try {
+        await browser.browsingData.remove({ hostnames: [hostname] }, firefoxSupportedTypes);
+        cleared.push('localStorage (via hostnames)');
+      } catch (firefoxError) {
+        console.warn(`[SiteDataManager] Firefox hostnames also failed:`, firefoxError);
+      }
+
+      // For other data types, we need to clear globally (Firefox limitation)
+      const globalFallbackTypes = {
+        indexedDB: true,
+        serviceWorkers: true,
+        cacheStorage: true,
+      };
+
+      try {
+        await browser.browsingData.remove({ since: 0 }, globalFallbackTypes);
+        cleared.push(...Object.keys(globalFallbackTypes).map(t => `${t} (global - Firefox limitation)`));
+      } catch (globalError) {
+        console.warn(`[SiteDataManager] Global fallback failed:`, globalError);
+      }
+    }
+
+    // Optionally clear global data types (cache, pluginData - affects ALL sites)
+    if (includeGlobalData) {
+      const globalTypes = {
+        cache: true,
+        pluginData: true,
+      };
+      await browser.browsingData.remove({ since: 0 }, globalTypes);
+      cleared.push(...Object.keys(globalTypes).map(t => `${t} (global)`));
+      console.log(`[SiteDataManager] Also cleared global data types: cache, pluginData`);
+    }
+
+    console.log(`[SiteDataManager] Cleared site data types:`, cleared);
+    return { success: true, cleared };
   } catch (error) {
     console.error(`[SiteDataManager] Error clearing site data for "${origin}":`, error);
     return { success: false, cleared: [], error: error.message };
@@ -310,7 +361,9 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // Clear all site data (cache, localStorage, indexedDB, service workers)
     case "clearSiteData":
-      clearSiteData(message.origin).then(sendResponse);
+      clearSiteData(message.origin, {
+        includeGlobalData: message.includeGlobalData || false
+      }).then(sendResponse);
       return true;
 
     default:

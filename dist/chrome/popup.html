@@ -278,6 +278,15 @@
     .checkbox-label:hover {
       color: #fff;
     }
+
+    .checkbox-label.sub-option {
+      font-size: 11px;
+      color: #f39c12;
+    }
+
+    .checkbox-label.sub-option:hover {
+      color: #f1c40f;
+    }
   </style>
 </head>
 <body>
@@ -311,7 +320,11 @@
     <div class="clear-options">
       <label class="checkbox-label">
         <input type="checkbox" id="clearSiteData">
-        Also clear site data (cache, storage, etc.)
+        Also clear site data (storage, service workers)
+      </label>
+      <label class="checkbox-label sub-option" id="globalDataOption" style="margin-left: 24px; display: none;">
+        <input type="checkbox" id="includeGlobalData">
+        ⚠️ Include HTTP cache (clears for ALL sites)
       </label>
     </div>
 
